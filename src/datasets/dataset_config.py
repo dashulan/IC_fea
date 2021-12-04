@@ -1,6 +1,6 @@
 from os.path import join
 
-_BASE_DATA_PATH = "../data"
+_BASE_DATA_PATH = "./data"
 
 dataset_config = {
     'mnist': {
@@ -90,13 +90,13 @@ dataset_config = {
             664, 818, 513, 349, 330, 207, 361, 345, 279, 549, 944, 817, 353, 228, 312, 796, 193, 179, 520, 451, 871,
             692, 60, 481, 480, 929, 499, 673, 331, 506, 70, 645, 759, 744, 459]
     },
-    'tiny-imagenet-200': {
-        'path': join(_BASE_DATA_PATH, 'tiny-imagenet-200'),
+    'tiny_imagenet_200': {
+        'path': join(_BASE_DATA_PATH, 'tiny_imagenet_200'),
         'resize': None,
         'pad': 4,
-        'crop': 32,
+        'crop': 64,
         'flip': True,
-        'normalize': ((0.481, 0.457, 0.408), (0.260, 0.253, 0.268)),
+        'normalize': ((0.4802, 0.4481, 0.3975), (0.2770, 0.2691, 0.2821))
     }
 
 }

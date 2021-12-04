@@ -119,9 +119,6 @@ class Inc_Learning_Appr:
             clock0 = time.time()
             self.train_epoch(t, trn_loader)
             clock1 = time.time()
-            # self.logger.log_scalar(task=t, iter=e + 1, name="loss_cos", value=l1, group="train")
-            # self.logger.log_scalar(task=t, iter=e + 1, name="loss_l2", value=l2, group="train")
-            # self.logger.log_scalar(task=t, iter=e + 1, name="loss_ce", value=l3, group="train")
             if self.eval_on_train:
                 train_loss, train_acc, _ = self.eval(t, trn_loader)
                 clock2 = time.time()

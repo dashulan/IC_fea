@@ -16,7 +16,7 @@ def seed_everything(seed=0):
     torch.backends.cudnn.deterministic = cudnn_deterministic
 
 
-def print_summary(acc_taw, acc_tag, forg_taw, forg_tag):
+def print_summary(acc_taw, forg_taw):
     """Print summary of results"""
     for name, metric in zip(['TAw Acc', 'TAw Forg'], [acc_taw,  forg_taw]):
         print('*' * 108)

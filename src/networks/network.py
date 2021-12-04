@@ -37,11 +37,6 @@ class LLL_Net(nn.Module):
         self.task_offset = []
         self._initialize_weights()
 
-    def headClacify(self,fea):
-        y = []
-        for head in self.heads:
-            y.append(head(fea))
-        return y
 
 
     def add_head(self, num_outputs):
@@ -72,6 +67,11 @@ class LLL_Net(nn.Module):
         else:
             return y
     
+    def headClacify(self,fea):
+        y = []
+        for head in self.heads:
+            y.append(head(fea))
+        return y
 
     def get_copy(self):
         """Get weights from the model"""

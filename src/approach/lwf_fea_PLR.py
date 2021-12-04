@@ -53,8 +53,53 @@ class Appr(Inc_Learning_Appr):
         return torch.optim.SGD(params, lr=self.lr, weight_decay=self.wd, momentum=self.momentum)
 
     def train_loop(self, t, trn_loader, val_loader):
+        best_loss = np.inf
+        best_model = self.model.get_copy()
 
-        super().train_loop(t,trn_loader,val_loader)
+        self.optimizer = self._get_optimizer()
+        scheduler = ReduceLROnPlateau(self.optimizer, factor=1. / self.lr_factor, patience=self.lr_patience)
+        # Loop epochs
+        for e in range(self.nepochs):
+            # Train
+            clock0 = time.time()
+            self.train_epoch(t, trn_loader)
+            clock1 = time.time()
+
+            if self.eval_on_train:
+                train_loss, train_acc, _ = self.eval(t, trn_loader)
+                clock2 = time.time()
+                print('| Epoch {:3d}, time={:5.1f}s/{:5.1f}s | Train: loss={:.3f}, TAw acc={:5.1f}% |'.format(
+                    e + 1, clock1 - clock0, clock2 - clock1, train_loss, 100 * train_acc), end='')
+                self.logger.log_scalar(task=t, iter=e + 1, name="loss", value=train_loss, group="train")
+                self.logger.log_scalar(task=t, iter=e + 1, name="acc", value=100 * train_acc, group="train")
+            else:
+                print('| Epoch {:3d}, time={:5.1f}s | Train: skip eval |'.format(e + 1, clock1 - clock0), end='')
+
+            # Valid
+            clock3 = time.time()
+            valid_loss, valid_acc, _ = self.eval(t, val_loader)
+            clock4 = time.time()
+            print(' Valid: time={:5.1f}s loss={:.3f}, TAw acc={:5.1f}% |'.format(
+                clock4 - clock3, valid_loss, 100 * valid_acc), end='')
+
+            self.logger.log_scalar(task=t, iter=e + 1, name="loss", value=valid_loss, group="valid")
+            self.logger.log_scalar(task=t, iter=e + 1, name="acc", value=100 * valid_acc, group="valid")
+
+            # Adapt learning rate - patience scheme - early stopping regularization
+            if valid_loss < best_loss:
+                # if the loss goes down, keep it as the best model and end line with a star ( * )
+                best_loss = valid_loss
+                best_model = self.model.get_copy()
+                print(' *', end='')
+            if self.optimizer.param_groups[0]['lr'] < self.lr_min:
+                print()
+                break
+            scheduler.step(valid_loss)
+
+            print()
+            self.logger.log_scalar(task=t, iter=e + 1, name="lr", value=self.optimizer.param_groups[0]['lr'],
+                                   group="train")
+        self.model.set_state_dict(best_model)
 
     def post_train_process(self, t, trn_loader):
         """Runs after training all the epochs of the task (after the train session)"""

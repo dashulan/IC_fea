@@ -1,0 +1,1 @@
+python src/main.py --nepochs 160 --lr 0.001 --wd 0 --datasets tiny_imagenet_200 --network resnet32 --batch_size 64 --exp-name lwf_fea_3_1_haveBNl_COSLR2_333 --approach lwf_fea_CosLR --num-tasks 10

@@ -1,7 +1,10 @@
 import random
+
+import PIL
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
+import  cv2
 
 
 class MemoryDataset(Dataset):
@@ -9,8 +12,8 @@ class MemoryDataset(Dataset):
 
     def __init__(self, data, transform, class_indices=None):
         """Initialization"""
-        self.labels = data['y']
         self.images = data['x']
+        self.labels = data['y']
         self.transform = transform
         self.class_indices = class_indices
 
@@ -20,7 +23,11 @@ class MemoryDataset(Dataset):
 
     def __getitem__(self, index):
         """Generates one sample of data"""
-        x = Image.fromarray(self.images[index])
+        x = self.images[index]
+        if x.shape[0]==2:
+            x = PIL.Image.open(self.images[index][0]).convert('RGB')
+        else:
+            x= Image.fromarray(self.images[index])
         x = self.transform(x)
         y = self.labels[index]
         return x, y
@@ -38,9 +45,9 @@ def get_data(trn_data, tst_data, num_tasks, nc_first_task, validation, shuffle_c
         num_classes = len(class_order)
         class_order = class_order.copy()
     
-    # if shuffle_classes:
-    #     np.random.shuffle(class_order)
-    #     print(class_order)
+    if shuffle_classes:
+        np.random.shuffle(class_order)
+        print(class_order)
 
     # compute classes per task and num_tasks
     if nc_first_task is None:
