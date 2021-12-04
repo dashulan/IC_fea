@@ -6,7 +6,7 @@ from .resnet32 import resnet32
 
 from .resnet32 import  resnet32
 from .resnet18 import  resnet18
-from .wide_resnet20_w_5 import wide_resnet20
+from .wide_resnet20 import wide_resnet20
 # available torchvision models
 tvmodels = ['alexnet',
             'densenet121', 'densenet169', 'densenet201', 'densenet161',
@@ -20,7 +20,7 @@ tvmodels = ['alexnet',
             'wide_resnet50_2', 'wide_resnet101_2'
             ]
 
-allmodels = tvmodels + ['resnet32', 'LeNet', 'VggNet']
+allmodels = tvmodels + ['resnet32', 'LeNet', 'VggNet','wide_resnet20']
 
 
 def set_tvmodel_head_var(model):

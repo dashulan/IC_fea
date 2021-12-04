@@ -2,3 +2,4 @@ data/
 results/
 .idea
 results_1204/*
+*/__pycache__

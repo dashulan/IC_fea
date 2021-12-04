@@ -70,7 +70,7 @@ class Appr(Inc_Learning_Appr):
         if self.fix_bn and t > 0:
             self.model.freeze_bn()
 
-        for images, targets in trn_loader:
+        for step,(images, targets) in enumerate(trn_loader):
 
             targets_old,old_fea = None,None
             if t > 0:
@@ -83,6 +83,8 @@ class Appr(Inc_Learning_Appr):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+
+
 
     def fake_criterion(self,t,outputs,targets,targets_old,fea,old_fea):
         loss1,loss2,loss3 = 0,0,0

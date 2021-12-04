@@ -23,10 +23,10 @@ def main(args):
         print('\t' + arg + ':', getattr(args, arg))
     print('=' * 108)
 
-    # utils.seed_everything(seed=args.seed)
+    utils.seed_everything(seed=args.seed)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    # utils.seed_everything(seed=args.seed)
+    utils.seed_everything(seed=args.seed)
     trn_loader, val_loader, tst_loader, taskcla = get_loaders(args.datasets, args.num_tasks, None,
                                                               args.batch_size, num_workers=4,
                                                               pin_memory=True)
@@ -47,6 +47,7 @@ def main(args):
     full_exp_name += '_' + args.approach
     if args.exp_name is not None:
         full_exp_name += '_' + args.exp_name
+    full_exp_name+='_'+args.network
     logger = MultiLogger("results", full_exp_name, loggers=['tensorboard','disk'], save_models=True)
     logger.log_args(argparse.Namespace(**args.__dict__))
 
@@ -83,7 +84,6 @@ def main(args):
             print('>>> Test on task {:2d} : loss={:.3f} | TAw acc={:5.1f}%, forg={:5.1f}% <<<'.format(u, test_loss,
                                                                  100 * acc_taw[t, u], 100 * forg_taw[t, u]))
         # Save
-        print('Save at ' + os.path.join(args.results_path, full_exp_name))
         logger.log_result(acc_taw, name="acc_taw", step=t)
         logger.log_result(forg_taw, name="forg_taw", step=t)
         logger.save_model(net.state_dict(), task=t)
