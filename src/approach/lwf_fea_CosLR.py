@@ -82,6 +82,7 @@ class Appr(Inc_Learning_Appr):
 
             self.optimizer.zero_grad()
             loss.backward()
+            # torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clipgrad)
             self.optimizer.step()
 
 

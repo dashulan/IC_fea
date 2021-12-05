@@ -69,24 +69,24 @@ class BottleNeck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, num_block, num_classes=100):
+    def __init__(self, block, num_block, num_classes=100,nf=20):
         super().__init__()
 
-        self.in_channels = 64
+        self.in_channels = nf
 
         self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(3, nf, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(nf),
             nn.ReLU(inplace=True))
         #we use a different inputsize than the original paper
         #so conv2_x's stride is 1
-        self.conv2_x = self._make_layer(block, 64, num_block[0], 1)
-        self.conv3_x = self._make_layer(block, 128, num_block[1], 2)
-        self.conv4_x = self._make_layer(block, 256, num_block[2], 2)
-        self.conv5_x = self._make_layer(block, 512, num_block[3], 2)
+        self.conv2_x = self._make_layer(block, nf, num_block[0], 1)
+        self.conv3_x = self._make_layer(block, nf*2, num_block[1], 2)
+        self.conv4_x = self._make_layer(block, nf*4, num_block[2], 2)
+        self.conv5_x = self._make_layer(block, nf*8, num_block[3], 2)
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
-        self.bnL = nn.BatchNorm1d(512)
+        self.fc = nn.Linear(nf*8 * block.expansion, num_classes)
+        self.bnL = nn.BatchNorm1d(nf*8)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -134,7 +134,7 @@ class ResNet(nn.Module):
 
         return output
 
-def resnet18():
+def resnet18Reduce():
     """ return a ResNet 18 object
     """
     return ResNet(BasicBlock, [2, 2, 2, 2])

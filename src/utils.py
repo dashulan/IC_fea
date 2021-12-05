@@ -32,3 +32,7 @@ def print_summary(acc_taw, forg_taw):
                 print('\tAvg.:{:5.1f}% '.format(100 * metric[i, :i + 1].mean()), end='')
             print()
     print('*' * 108)
+
+
+def compute_conv_output_size(Lin,kernel_size,stride=1,padding=0,dilation=1):
+    return int(np.floor((Lin+2*padding-dilation*(kernel_size-1)-1)/float(stride)+1))

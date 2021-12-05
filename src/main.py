@@ -16,6 +16,7 @@ import os
 
 def main(args):
     tstart = time.time()
+
     utils.seed_everything(seed=args.seed)
     print('=' * 108)
     print('Arguments =')
@@ -48,6 +49,7 @@ def main(args):
     if args.exp_name is not None:
         full_exp_name += '_' + args.exp_name
     full_exp_name+='_'+args.network
+    full_exp_name+='_'+str(args.num_tasks)
     logger = MultiLogger("results", full_exp_name, loggers=['tensorboard','disk'], save_models=True)
     logger.log_args(argparse.Namespace(**args.__dict__))
 

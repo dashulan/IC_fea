@@ -145,6 +145,17 @@ def get_datasets(dataset, path, num_tasks, nc_first_task, validation, trn_transf
                                                          shuffle_classes=class_order is None, class_order=class_order)
         Dataset = memd.MemoryDataset
         pass
+    elif 'miniImagenet' in dataset:
+        trainset = datasets.ImageFolder(root=os.path.join(path, 'train'))
+        testset = datasets.ImageFolder(root=os.path.join(path, 'test'))
+        trn_data = {'x': trainset.imgs, 'y': trainset.targets}
+        tst_data = {'x': testset.imgs, 'y': testset.targets}
+        # compute splits
+        all_data, taskcla, class_indices = memd.get_data(trn_data, tst_data, validation=validation,
+                                                         num_tasks=num_tasks, nc_first_task=nc_first_task,
+                                                         shuffle_classes=class_order is None, class_order=class_order)
+        Dataset = memd.MemoryDataset
+        pass
     else:
         # read data paths and compute splits -- path needs to have a train.txt and a test.txt with image-label pairs
         all_data, taskcla, class_indices = basedat.get_data(path, num_tasks=num_tasks, nc_first_task=nc_first_task,

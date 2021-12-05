@@ -26,6 +26,14 @@ dataset_config = {
         'flip': True,
         'normalize': ((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023))
     },
+    'cifar100_noaug': {
+        'path': join(_BASE_DATA_PATH, 'cifar100'),
+        'resize': None,
+        'pad': 4,
+        'crop': 32,
+        'flip': True,
+        'normalize': ((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023))
+    },
     'cifar100_icarl': {
         'path': join(_BASE_DATA_PATH, 'cifar100'),
         'resize': None,
@@ -97,7 +105,24 @@ dataset_config = {
         'crop': 64,
         'flip': True,
         'normalize': ((0.4802, 0.4481, 0.3975), (0.2770, 0.2691, 0.2821))
-    }
+    },
+    'miniImagenet': {
+        'path': join(_BASE_DATA_PATH, 'miniimagenet'),
+        'resize': None,
+        'pad': 4,
+        'crop': 84,
+        'flip': True,
+        'normalize':((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    },
+    'miniImagenet_noaug': {
+        'path': join(_BASE_DATA_PATH, 'miniimagenet'),
+        'resize': None,
+        # 'pad': 4,
+        # 'crop': 84,
+        # 'flip': True,
+        'normalize': ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    },
+
 
 }
 

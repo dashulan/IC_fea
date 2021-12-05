@@ -85,9 +85,7 @@ class Appr(Inc_Learning_Appr):
             self.logger.log_scalar(task=t, iter=e + 1, name="loss", value=valid_loss, group="valid")
             self.logger.log_scalar(task=t, iter=e + 1, name="acc", value=100 * valid_acc, group="valid")
 
-            # Adapt learning rate - patience scheme - early stopping regularization
             if valid_loss < best_loss:
-                # if the loss goes down, keep it as the best model and end line with a star ( * )
                 best_loss = valid_loss
                 best_model = self.model.get_copy()
                 print(' *', end='')
