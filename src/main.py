@@ -56,7 +56,8 @@ def main(args):
 
     Appr = getattr(importlib.import_module(name='approach.' + args.approach), 'Appr')
     utils.seed_everything(seed=args.seed)
-    appr = Appr(net,device,nepochs=args.nepochs,lr=args.lr,logger=logger,wd=args.wd)
+    appr = Appr(net,device,nepochs=args.nepochs,lr=args.lr,logger=logger,\
+                wd=args.wd,momentum=args.momentum,lr_min=args.lr_min,lr_factor=args.lr_factor)
 
 
     max_task = len(taskcla) 
@@ -115,11 +116,11 @@ if __name__ =='__main__':
 
     parser.add_argument('--lr', default=0.1, type=float, required=False,
                         help='Starting learning rate (default=%(default)s)')
-    parser.add_argument('--lr-min', default=1e-4, type=float, required=False,
+    parser.add_argument('--lr-min', default=1e-5, type=float, required=False,
                         help='Minimum learning rate (default=%(default)s)')
-    parser.add_argument('--lr-factor', default=3, type=float, required=False,
+    parser.add_argument('--lr-factor', default=2, type=float, required=False,
                         help='Learning rate decreasing factor (default=%(default)s)')
-    parser.add_argument('--lr-patience', default=5, type=int, required=False,
+    parser.add_argument('--lr-patience', default=6, type=int, required=False,
                         help='Maximum patience to wait before decreasing learning rate (default=%(default)s)')
 
     parser.add_argument('--momentum', default=0.9, type=float, required=False,

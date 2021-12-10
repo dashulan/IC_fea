@@ -29,9 +29,9 @@ dataset_config = {
     'cifar100_noaug': {
         'path': join(_BASE_DATA_PATH, 'cifar100'),
         'resize': None,
-        'pad': 4,
-        'crop': 32,
-        'flip': True,
+        # 'pad': 4,
+        # 'crop': 32,
+        # 'flip': True,
         'normalize': ((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023))
     },
     'cifar100_icarl': {

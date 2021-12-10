@@ -203,23 +203,6 @@ def get_transforms(resize, pad, crop, flip, normalize, extend_channel):
     if flip:
         trn_transform_list.append(transforms.RandomHorizontalFlip())
 
-
-    # augment = transforms.RandomApply(
-    #     [
-    #         transforms.Compose(
-    #             [
-    #                 transforms.Pad(
-    #                     int(np.ceil(0.1 * 32)), padding_mode="reflect"
-    #                 ),
-    #                 transforms.RandomAffine(0, translate=(0.1, 0.1)),
-    #                 transforms.CenterCrop(32),
-    #             ]
-    #         ),
-    #         transforms.RandomHorizontalFlip(),
-    #         transforms.ColorJitter(0.3, 0.3, 0.3, 0.2),
-    #     ], p=0.6)
-    # trn_transform_list.append((augment))
-
     # to tensor
     trn_transform_list.append(transforms.ToTensor())
     tst_transform_list.append(transforms.ToTensor())
@@ -228,6 +211,13 @@ def get_transforms(resize, pad, crop, flip, normalize, extend_channel):
     if normalize is not None:
         trn_transform_list.append(transforms.Normalize(mean=normalize[0], std=normalize[1]))
         tst_transform_list.append(transforms.Normalize(mean=normalize[0], std=normalize[1]))
+
+
+    # if normalize is not None:
+    #     mean = [x / 255 for x in [125.3, 123.0, 113.9]]
+    #     std = [x / 255 for x in [63.0, 62.1, 66.7]]
+    #     trn_transform_list.append(transforms.Normalize(mean,std))
+    #     tst_transform_list.append(transforms.Normalize(mean,std))
 
     # gray to rgb
     if extend_channel is not None:

@@ -94,9 +94,7 @@ class Appr(Inc_Learning_Appr):
                 print()
                 break
             scheduler.step(valid_loss)
-            # if e==60 or e==80:
-            #     lr/=10
-            #     self.optimizer.param_groups[0]['lr']=lr
+
             print()
             self.logger.log_scalar(task=t, iter=e + 1, name="lr", value=self.optimizer.param_groups[0]['lr'],
                                    group="train")

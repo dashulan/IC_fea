@@ -5,8 +5,8 @@ from argparse import ArgumentParser
 from .incremental_learning import Inc_Learning_Appr
 from datasets.exemplars_dataset import ExemplarsDataset
 import torch.nn.functional as F
-
-
+import  numpy as np
+import time
 class Appr(Inc_Learning_Appr):
     """Class implementing the Learning Without Forgetting (LwF) approach
     described in https://arxiv.org/abs/1606.09282
@@ -45,32 +45,70 @@ class Appr(Inc_Learning_Appr):
         return parser.parse_known_args(args)
 
     def _get_optimizer(self):
-        """Returns the optimizer"""
-        # if len(self.exemplars_dataset) == 0 and len(self.model.heads) > 1:
-        #     # if there are no exemplars, previous heads are not modified
-        #     params = list(self.model.model.parameters()) + list(self.model.heads[-1].parameters())
-        # else:
-        #     params = self.model.parameters()
+
 
         params = self.model.parameters()
         return torch.optim.SGD(params, lr=self.lr, weight_decay=self.wd, momentum=self.momentum)
 
     def train_loop(self, t, trn_loader, val_loader):
-        """Contains the epochs loop"""
+        lr = self.lr
+        best_loss = np.inf
+        patience = self.lr_patience
+        best_model = self.model.get_copy()
 
-        # add exemplars to train_loader
-        # if len(self.exemplars_dataset) > 0 and t > 0:
-        #     trn_loader = torch.utils.data.DataLoader(trn_loader.dataset + self.exemplars_dataset,
-        #                                              batch_size=trn_loader.batch_size,
-        #                                              shuffle=True,
-        #                                              num_workers=trn_loader.num_workers,
-        #                                              pin_memory=trn_loader.pin_memory)
+        self.optimizer = self._get_optimizer()
 
-        # FINETUNING TRAINING -- contains the epochs loop
-        super().train_loop(t, trn_loader, val_loader)
+        # Loop epochs
+        for e in range(self.nepochs):
+            # Train
+            clock0 = time.time()
+            self.train_epoch(t, trn_loader)
+            clock1 = time.time()
+            if self.eval_on_train:
+                train_loss, train_acc, _ = self.eval(t, trn_loader)
+                clock2 = time.time()
+                print('| Epoch {:3d}, time={:5.1f}s/{:5.1f}s | Train: loss={:.3f}, TAw acc={:5.1f}% |'.format(
+                    e + 1, clock1 - clock0, clock2 - clock1, train_loss, 100 * train_acc), end='')
+                self.logger.log_scalar(task=t, iter=e + 1, name="loss", value=train_loss, group="train")
+                self.logger.log_scalar(task=t, iter=e + 1, name="acc", value=100 * train_acc, group="train")
+            else:
+                print('| Epoch {:3d}, time={:5.1f}s | Train: skip eval |'.format(e + 1, clock1 - clock0), end='')
 
-        # EXEMPLAR MANAGEMENT -- select training subset
-        # self.exemplars_dataset.collect_exemplars(self.model, trn_loader, val_loader.dataset.transform)
+            # Valid
+            clock3 = time.time()
+            valid_loss, valid_acc, _ = self.eval(t, val_loader)
+            clock4 = time.time()
+            print(' Valid: time={:5.1f}s loss={:.3f}, TAw acc={:5.1f}% |'.format(
+                clock4 - clock3, valid_loss, 100 * valid_acc), end='')
+            self.logger.log_scalar(task=t, iter=e + 1, name="loss", value=valid_loss, group="valid")
+            self.logger.log_scalar(task=t, iter=e + 1, name="acc", value=100 * valid_acc, group="valid")
+
+            # Adapt learning rate - patience scheme - early stopping regularization
+            if valid_loss < best_loss:
+                # if the loss goes down, keep it as the best model and end line with a star ( * )
+                best_loss = valid_loss
+                best_model = self.model.get_copy()
+                patience = self.lr_patience
+                print(' *', end='')
+            else:
+                # if the loss does not go down, decrease patience
+                patience -= 1
+                if patience <= 0:
+                    # if it runs out of patience, reduce the learning rate
+                    lr /= self.lr_factor
+                    print(' lr={:.1e}'.format(lr), end='')
+                    if lr < self.lr_min:
+                        # if the lr decreases below minimum, stop the training session
+                        print()
+                        break
+                    # reset patience and recover best model so far to continue training
+                    patience = self.lr_patience
+                    self.optimizer.param_groups[0]['lr'] = lr
+                    self.model.set_state_dict(best_model)
+            self.logger.log_scalar(task=t, iter=e + 1, name="patience", value=patience, group="train")
+            self.logger.log_scalar(task=t, iter=e + 1, name="lr", value=lr, group="train")
+            print()
+        self.model.set_state_dict(best_model)
 
     def post_train_process(self, t, trn_loader):
         """Runs after training all the epochs of the task (after the train session)"""
@@ -106,12 +144,12 @@ class Appr(Inc_Learning_Appr):
             self.model.eval()
             for images, targets in val_loader:
                 # Forward old model
-                # targets_old = None
-                # if t > 0:
-                #     targets_old = self.model_old(images.to(self.device))
-                # # Forward current model
+                targets_old = None
+                if t > 0:
+                    targets_old = self.model_old(images.to(self.device))
+                # Forward current model
                 outputs = self.model(images.to(self.device))
-                loss = F.cross_entropy(outputs[t],targets.to(self.device) - self.model.task_offset[t])
+                loss = self.criterion(t, outputs, targets.to(self.device), targets_old)
                 hits_taw, hits_tag = self.calculate_metrics(outputs, targets)
                 # Log
                 total_loss += loss.data.cpu().numpy().item() * len(targets)
@@ -122,8 +160,21 @@ class Appr(Inc_Learning_Appr):
 
     def cross_entropy(self, outputs, targets, exp=1.0, size_average=True, eps=1e-5):
         """Calculates cross-entropy with temperature scaling"""
-        out = torch.nn.functional.softmax(outputs, dim=1)
-        tar = torch.nn.functional.softmax(targets, dim=1)
+        # out = torch.nn.functional.softmax(outputs, dim=1)
+        # tar = torch.nn.functional.softmax(targets, dim=1)
+        # if exp != 1:
+        #     out = out.pow(exp)
+        #     out = out / out.sum(1).view(-1, 1).expand_as(out)
+        #     tar = tar.pow(exp)
+        #     tar = tar / tar.sum(1).view(-1, 1).expand_as(tar)
+        # out = out + eps / out.size(1)
+        # out = out / out.sum(1).view(-1, 1).expand_as(out)
+        # ce = -(tar * out.log()).sum(1)
+        # if size_average:
+        #     ce = ce.mean()
+        # return ce
+        out = torch.nn.functional.softmax(outputs)
+        tar = torch.nn.functional.softmax(targets)
         if exp != 1:
             out = out.pow(exp)
             out = out / out.sum(1).view(-1, 1).expand_as(out)
@@ -131,10 +182,13 @@ class Appr(Inc_Learning_Appr):
             tar = tar / tar.sum(1).view(-1, 1).expand_as(tar)
         out = out + eps / out.size(1)
         out = out / out.sum(1).view(-1, 1).expand_as(out)
-        ce = -(tar * out.log()).sum(1)
+        # ce=-(tar*out.log()).sum(1)
+        ce = -(tar * out.log()).sum(1) * ((1. / exp) ** 2)
         if size_average:
             ce = ce.mean()
         return ce
+
+
 
     def criterion(self, t, outputs, targets, outputs_old=None):
         """Returns the loss value"""

@@ -107,12 +107,13 @@ class Inc_Learning_Appr:
         self.optimizer = self._get_optimizer()
         warm_up_iter = 5
         T_max = 150
-        lr_max = 0.1
+        lr_max = 0.01
         lr_min = 1e-4
         lambda0 = lambda cur_iter: 20 * cur_iter if cur_iter < warm_up_iter else \
             (lr_min + 0.5 * (lr_max - lr_min) * (
-                    1.0 + math.cos((cur_iter - warm_up_iter) / (T_max - warm_up_iter) * math.pi))) / (1e-3)
+                    1.0 + math.cos((cur_iter - warm_up_iter) / (T_max - warm_up_iter) * math.pi))) / (1e-4)
         scheduler = LambdaLR(self.optimizer, lr_lambda=lambda0)
+
         # Loop epochs
         for e in range(self.nepochs):
             # Train
@@ -145,14 +146,24 @@ class Inc_Learning_Appr:
                 best_loss = valid_loss
                 best_model = self.model.get_copy()
                 print(' *', end='')
+            else:
+                # if the loss does not go down, decrease patience
+                patience -= 1
+                if patience <= 0:
+                    # if it runs out of patience, reduce the learning rate
+                    lr /= self.lr_factor
+                    print(' lr={:.1e}'.format(lr), end='')
+                    if lr < self.lr_min:
+                        # if the lr decreases below minimum, stop the training session
+                        print()
+                        break
+                    # reset patience and recover best model so far to continue training
+                    patience = self.lr_patience
+                    self.optimizer.param_groups[0]['lr'] = lr
+                    self.model.set_state_dict(best_model)
 
             scheduler.step()
-            # if e==60 or e==80 or e==120:
-            #     lr /=10
-            #     self.optimizer.param_groups[0]['lr'] = lr
 
-            # self.logger.log_scalar(task=t, iter=e + 1, name="patience", value=patience, group="train")
-            # self.logger.log_scalar(task=t, iter=e + 1, name="lr", value=self.optimizer.param_groups[0]['lr'], group="train")
             print()
             self.logger.log_scalar(task=t, iter=e + 1, name="lr", value=self.optimizer.param_groups[0]['lr'],
                                    group="train")

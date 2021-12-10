@@ -1,8 +1,10 @@
+import math
+
 import torch
 from copy import deepcopy
 from argparse import ArgumentParser
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, LambdaLR
 
 from .incremental_learning import Inc_Learning_Appr
 from datasets.exemplars_dataset import ExemplarsDataset
@@ -53,19 +55,28 @@ class Appr(Inc_Learning_Appr):
         return torch.optim.SGD(params, lr=self.lr, weight_decay=self.wd, momentum=self.momentum)
 
     def train_loop(self, t, trn_loader, val_loader):
-        lr =self.lr
+
+        lr = self.lr
         best_loss = np.inf
+        patience = self.lr_patience
         best_model = self.model.get_copy()
 
         self.optimizer = self._get_optimizer()
-        scheduler = ReduceLROnPlateau(self.optimizer, factor=1. / self.lr_factor, patience=self.lr_patience)
+        warm_up_iter = 5
+        T_max = 150
+        lr_max = 0.01
+        lr_min = 1e-4
+        lambda0 = lambda cur_iter: 20 * cur_iter if cur_iter < warm_up_iter else \
+            (lr_min + 0.5 * (lr_max - lr_min) * (
+                    1.0 + math.cos((cur_iter - warm_up_iter) / (T_max - warm_up_iter) * math.pi))) / (1e-4)
+        scheduler = LambdaLR(self.optimizer, lr_lambda=lambda0)
+
         # Loop epochs
         for e in range(self.nepochs):
             # Train
             clock0 = time.time()
             self.train_epoch(t, trn_loader)
             clock1 = time.time()
-
             if self.eval_on_train:
                 train_loss, train_acc, _ = self.eval(t, trn_loader)
                 clock2 = time.time()
@@ -86,17 +97,15 @@ class Appr(Inc_Learning_Appr):
             self.logger.log_scalar(task=t, iter=e + 1, name="loss", value=valid_loss, group="valid")
             self.logger.log_scalar(task=t, iter=e + 1, name="acc", value=100 * valid_acc, group="valid")
 
+            # Adapt learning rate - patience scheme - early stopping regularization
             if valid_loss < best_loss:
+                # if the loss goes down, keep it as the best model and end line with a star ( * )
                 best_loss = valid_loss
                 best_model = self.model.get_copy()
                 print(' *', end='')
-            if self.optimizer.param_groups[0]['lr'] < self.lr_min:
-                print()
-                break
-            scheduler.step(valid_loss)
-            # if e==60 or e==80:
-            #     lr/=10
-            #     self.optimizer.param_groups[0]['lr']=lr
+
+            scheduler.step()
+
             print()
             self.logger.log_scalar(task=t, iter=e + 1, name="lr", value=self.optimizer.param_groups[0]['lr'],
                                    group="train")
@@ -106,6 +115,7 @@ class Appr(Inc_Learning_Appr):
         """Runs after training all the epochs of the task (after the train session)"""
 
         # Restore best and save model for future tasks
+        # if t==0:
         self.model_old = deepcopy(self.model)
         self.model_old.eval()
         self.model_old.freeze_all()
@@ -116,7 +126,7 @@ class Appr(Inc_Learning_Appr):
         if self.fix_bn and t > 0:
             self.model.freeze_bn()
 
-        for images, targets in trn_loader:
+        for step,(images, targets) in enumerate(trn_loader):
 
             targets_old,old_fea = None,None
             if t > 0:
@@ -128,17 +138,22 @@ class Appr(Inc_Learning_Appr):
 
             self.optimizer.zero_grad()
             loss.backward()
+            # torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clipgrad)
             self.optimizer.step()
+
 
     def fake_criterion(self,t,outputs,targets,targets_old,fea,old_fea):
         loss1,loss2,loss3 = 0,0,0
         if t>0:
-            loss1 = self.apha * F.cosine_embedding_loss(fea, old_fea, torch.tensor([1], device=self.device))
             tempOuts = self.model_old.headClacify(fea)
-            loss2 = self.beta*F.mse_loss(torch.cat(tempOuts[:t],dim=1),torch.cat(targets_old[:t],dim=1))
-
-        loss3 = F.cross_entropy(outputs[t], targets.to(self.device) - self.model.task_offset[t])
-        return loss1+loss2+loss3
+            for tt in range(t):
+                temp_s = F.layer_norm(tempOuts[tt],torch.Size((10,)),None,None,1e-7)*2
+                temp_t = F.layer_norm(targets_old[tt],torch.Size((10,)),None,None,1e-7)*2
+                loss2+= 0.5*F.mse_loss(temp_s,temp_t)
+            loss2 = loss2/t
+        temp = F.layer_norm(outputs[t],torch.Size((10,)),None,None,1e-7)*2
+        loss3 = F.cross_entropy(temp, targets.to(self.device) - self.model.task_offset[t])
+        return loss1+ loss2 + loss3
 
     def eval(self, t, val_loader):
         """Contains the evaluation code"""
